@@ -1,70 +1,90 @@
-# Getting Started with Create React App
+## エラー: Failed to initialize watch plugin "node_modules/jest-watch-typeahead/filename.js
+  - 原因: モジュールのjest-watch-typeheadが現バージョンだとESMで書かれておりエラーがでる
+  - 解決策: ```npm i -D --exact jest-watch-typeahead@0.6.5``` : ESMモジュールと競合しないバージョンのjestを読み込む
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Dockerを使ったアプリケーションの開発ワークフロー
 
-## Available Scripts
+## 下準備
+1. ローカルのnpm
 
-In the project directory, you can run:
+## 開発環境と本番環境
+- 開発環境と本番環境でDockerFileを分けた方がよい
+- 開発環境ではDockerfile.dev、本番環境ではそのままDockerFileと名付けることで差別化できる
+- `Dockerfile`以外の名前のファイルを読み込み時は`docker build -f ファイル名 .`のように`-f`をつける
 
-### `npm start`
+## Dockerfile読み込み時間の短縮
+- コンテナにコピーされたローカルの`node_modules`ファイルとコンテナでインストールされた`node_modules`の2つが存在し、容量を食う :ローカルの`node_modules`ファイルを削除する
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+# DockerVolume
+  - ボリューム: 外部のデータ保存領域。コンテナに保存したデータはコンテナが破棄されると同時に削除されるため。
+  - バインドマウント: コンテナ内のファイルがコンテナ外のファイルを参照し続けるように設定できる
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+ - マウント: ホスト側のリソースをコンテナの中から使えるようにすること。読み書き可能
 
-### `npm test`
+例(バインドマウント): 
+  - ローカル環境でコードに変更を加えた場合、読み込ませるために毎回`docker build`、`docker run`する必要がある。
+  - docker内にコピーしたファイルが常にローカルのファイルの内容を参照するように設定することで手間を省略できる
+```docker run -p 3000:3000 -v /app/node_modules -v ${pwd}:/app imageId```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- `-p 外部からのポート:docker内のポート`: ポートの紐付け
+- `-v docker内のパス`: 指定したパスのリソースはローカルのリソースをマウント、参照しない。`npm install`で作成されたnode_modulesフォルダはローカルに存在しないため、バインドさせるとエラーになる.バインドマウントはローカル、コンテナ内に対応するリソースがある場合のみ可能。
+- `-v ローカルのパス:docker内のパス`: ローカルのリソースとdocker内のリソースをマウントさせる。`:`が必要。
 
-### `npm run build`
+問題点: コマンドが複雑
+改善策: docker-composeで簡単にdocker runを実行する
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
+version: '3'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - /app/node_modules
+      - .:/app
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```
+build:
+  context: パス
+  dockerfile: dockerファイル名
+```
+dockerファイルのパス、名前が違う場合はオプションをつけて設定する
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```
+volumes:
+  - コンテナ内のパス
+  - ローカルのパス:コンテナ内のパス
+```
+1行目のパスはローカルにマウントしない設定、2行目のパスはローカルにマウントする設定
 
-### `npm run eject`
+## テスト
+  - ```docker run -it cdcfc83005ab npm run test```: コンテナを立ち上げて`npm run test`を実行する
+  - コンテナが起動中の場合、```docker exec -it コンテナId or 名前 sh```でコンテナにアクセスして`npm run test`を実行する
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 実行環境
+Webサーバーにデプロイする場合
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+例: Dockerfile
+```
+FROM node:14-alpine as builder
+WORKDIR '/app'
+COPY package.json .
+RUN npm install
+COPY . .
+RUN npm run build
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+FROM nginx
+COPY --from=builder /app/build /usr/share/nginx/html
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+ベースイメージを２つ指定している。alpineがインストールされたビルドフェーズとnginxがインストールされた実行フェーズの２つに分けている
+2つのフェーズに分けることでnpm installされたモジュールの依存関係などの不要な生成物をカットできる。依存関係はビルドするときに必要だけどデプロイ時は必要ないため。
 
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- `FROM イメージ as 別名`: イメージに別名を付けられる
+- `RUN npm run build`: プロジェクトをビルドし、デプロイ用に1つの圧縮ファイルを作成する
+- `FROM nginx`: 2つ目のベースイメージ
+- `COPY --from=別のフェーズのイメージ名 コピー元 コピー先`: 1つ目のイメージで作成されたファイル、フォルダを別のパスにコピー。`/usr/share/nginx/html`はnginxがwebサイトをデプロイするときに配置される場所。1つ目のイメージで作成された`npm run build`の成果物だけが移される。
