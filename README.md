@@ -106,7 +106,7 @@ VPC、サブネット、負荷分散、EC2、RDS、サーバー、言語のイ�
 2. `AWS_ACCESS_KEY(IAMユーザーの認証情報)`, `AWS_SECRET_KEY(IAMユーザーの暗号キー)`, `DOCKER_USERNAME`, `DOCKER_PASSWORD`をGithubの環境変数として登録
 3. プロジェクトのルートディレクトリに`.github`フォルダを作成
   - その中に`workflows`フォルダを作成
-    - その中に`deploy.yaml(任意の名前)`ファイルを作成
+    - その中に`deploy.yml or yaml(任意の名前)`ファイルを作成
 4. deploy.yamlファイルの編集
 
 ```
@@ -140,3 +140,25 @@ jobs:
           version_label: ${{ github.sha }}
           deployment_package: deploy.zip
 ```
+
+`name`: Githubに表示させるワークフローの名前。  
+`on`: 自動テスト、デプロイを発動させる条件  
+`push`: Githubにpush時発動  
+`branches`: 特定のブランチにpushしたときに発動
+
+`jobs`: 複数のステップで構成された処理。  
+`build`: `job`の名前  
+`runs-on`: Github actionsが動作する環境を指定  
+`steps`: `job`に紐づく動作の集合体  
+`steps.uses`: `job`の`step`の一部として処理される動作。アクション。  
+`actions/checkout@v2`: Github actionsが提供している機能。gitでcheckoutする。  
+`steps.run`: コマンドを実行する。`name`を指定しないと実行するコマンドがstep名になる。  
+`steps.uses: einaregilsson/beanstalk-deploy@v18`: AWSのBeanstalkを使ってデプロイする  
+`steps.with`: `action`で定義されているパラメータの指定。
+
+aws_access_key, aws_secret_key, application_name: docker-react, environment_nameを随時変更する
+
+
+## jobとstepの違い
+job: 並行実行される
+step: 直列実行される
