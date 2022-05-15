@@ -47,6 +47,8 @@ services:
       - .:/app
 ```
 
+```docker-compose -f docker-compose.ymlの別名 up (--build)```: docker-composeも`-f`をつけると指定した名前のcomposeファイルを検索し、実行する
+
 ```
 build:
   context: パス
@@ -88,3 +90,11 @@ COPY --from=builder /app/build /usr/share/nginx/html
 - `RUN npm run build`: プロジェクトをビルドし、デプロイ用に1つの圧縮ファイルを作成する
 - `FROM nginx`: 2つ目のベースイメージ
 - `COPY --from=別のフェーズのイメージ名 コピー元 コピー先`: 1つ目のイメージで作成されたファイル、フォルダを別のパスにコピー。`/usr/share/nginx/html`はnginxがwebサイトをデプロイするときに配置される場所。1つ目のイメージで作成された`npm run build`の成果物だけが移される。
+
+## CIツール
+githubにpushしたコードのテスト、デプロイの自動化が可能。CircleCI,TravisCI,GitHubActionなど。
+
+## AWSにデプロイ
+
+### Elastic Beanstalk
+VPC、サブネット、負荷分散、EC2、RDS、サーバー、言語のインストールなどを自動で行ってくれるAWSのサービス
