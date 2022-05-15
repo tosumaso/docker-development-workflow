@@ -2,7 +2,7 @@
   - 原因: モジュールのjest-watch-typeheadが現バージョンだとESMで書かれておりエラーがでる
   - 解決策: ```npm i -D --exact jest-watch-typeahead@0.6.5``` : ESMモジュールと競合しないバージョンのjestを読み込む
 
-# Dockerを使ったアプリケーションの開発ワークフロー
+# Docker、GithubActions、Elastic Beanstalkを使ったアプリケーションの開発ワークフロー
 
 ## 下準備
 1. ローカルのnpm
@@ -99,4 +99,44 @@ githubにpushしたコードのテスト、デプロイの自動化が可能。C
 ### Elastic Beanstalk
 VPC、サブネット、負荷分散、EC2、RDS、サーバー、言語のインストールなどを自動で行ってくれるAWSのサービス
 
-##
+## Github Actions
+
+1. Githubリポジトリの`Settings` -> `Actions` -> `New repository secret`からGithub用の環境変数を設定
+  - プロジェクト内で変数に参照する方法: ```${{ secrets.変数名 }}```
+2. `AWS_ACCESS_KEY(IAMユーザーの認証情報)`, `AWS_SECRET_KEY(IAMユーザーの暗号キー)`, `DOCKER_USERNAME`, `DOCKER_PASSWORD`をGithubの環境変数として登録
+3. プロジェクトのルートディレクトリに`.github`フォルダを作成
+  - その中に`workflows`フォルダを作成
+    - その中に`deploy.yaml(任意の名前)`ファイルを作成
+4. deploy.yamlファイルの編集
+
+```
+name: Deploy Frontend
+on:
+  push:
+    branches:
+      - master
+ 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+      - run: docker build -t cygnetops/react-test -f Dockerfile.dev .
+      - run: docker run -e CI=true cygnetops/react-test npm test
+ 
+      - name: Generate deployment package
+        run: zip -r deploy.zip . -x '*.git*'
+ 
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v18
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_KEY }}
+          application_name: docker-react
+          environment_name: Dockerreact-env
+          existing_bucket_name: elasticbeanstalk-ap-northeast-1-401084975383
+          region: ap-northeast-1
+          version_label: ${{ github.sha }}
+          deployment_package: deploy.zip
+```
