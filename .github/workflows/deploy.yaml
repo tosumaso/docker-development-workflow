@@ -27,5 +27,3 @@ jobs:
           region: ap-northeast-1
           version_label: ${{ github.sha }}
           deployment_package: deploy.zip
-
-          Dockerreact-env.eba-2kry7ia2.ap-northeast-1.elasticbeanstalk.com
